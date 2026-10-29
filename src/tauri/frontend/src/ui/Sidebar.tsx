@@ -4,7 +4,13 @@ import { NavLink } from "react-router-dom";
 export const Sidebar: React.FC = () => {
   return (
     <aside className="sidebar">
-      <div className="sidebar-header">Music_Cool</div>
+      <div className="sidebar-header">
+        <img src="/logo.svg" alt="" className="sidebar-logo" />
+        <span>
+          <span className="brand-music">Music</span>
+          <span className="brand-cool">Cool</span>
+        </span>
+      </div>
       <nav className="sidebar-nav">
         <NavLink to="/library" className="sidebar-item">
           音乐库

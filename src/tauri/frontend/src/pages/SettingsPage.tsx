@@ -56,7 +56,7 @@ export const SettingsPage: React.FC = () => {
 
       await invoke("set_library_path", { path: libraryPath });
 
-      await invoke("set_max_threads", { maxThreads });
+      await invoke("set_max_threads", { threads: maxThreads });
 
       await invoke("set_exclude_patterns", { patterns: excludePatterns });
 
@@ -66,7 +66,7 @@ export const SettingsPage: React.FC = () => {
 
       console.error(err);
 
-      alert("保存失败，请查看控制台日志");
+      alert(`保存失败: ${err}`);
 
     }
 

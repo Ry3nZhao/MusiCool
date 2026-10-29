@@ -484,7 +484,7 @@ export const ImportPage: React.FC = () => {
 
       console.error("Failed to create project:", err);
 
-      alert("创建项目失败");
+      alert(`创建项目失败: ${err}`);
 
     }
 
@@ -520,7 +520,7 @@ export const ImportPage: React.FC = () => {
 
       console.error("Failed to delete project:", err);
 
-      alert("删除项目失败");
+      alert(`删除项目失败: ${err}`);
 
     }
 
@@ -582,7 +582,7 @@ export const ImportPage: React.FC = () => {
 
       console.error("Failed to start import:", err);
 
-      alert("启动导入失败");
+      alert(`启动导入失败: ${err}`);
 
     }
 

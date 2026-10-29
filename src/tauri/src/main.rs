@@ -142,9 +142,19 @@ impl AppState {
 
     pub async fn new(app_handle: tauri::AppHandle) -> Result<Self, String> {
 
-        // 使用项目根目录的 config.json（与 Python 版本保持一致）
+        // 开发版：使用项目根目录的 config.json（与 Python 版本保持一致）
         // 优先使用当前工作目录，如果不存在则尝试从可执行文件路径推断
-        let config_path: PathBuf = if let Ok(cwd) = std::env::current_dir() {
+        // 发布版：存到系统的应用配置目录（如 macOS 的 ~/Library/Application Support/com.musiccool.app）。
+        // 从 Finder 启动时工作目录是 "/"，按工作目录推断会得到不可写的 /config.json，导致保存失败。
+        let release_config = if cfg!(debug_assertions) {
+            None
+        } else {
+            tauri::api::path::app_config_dir(&app_handle.config()).map(|d| d.join("config.json"))
+        };
+
+        let config_path: PathBuf = if let Some(p) = release_config {
+            p
+        } else if let Ok(cwd) = std::env::current_dir() {
             // 检查当前工作目录是否是项目根目录
             if cwd.join("src/tauri").exists() || cwd.join("config.json").exists() {
                 cwd.join("config.json")
