@@ -1,0 +1,26 @@
+[toolchain]
+# 使用稳定版通道，确保自动获取最新的稳定版 Rust
+# Tauri 1.x 需要 Rust 1.70+，使用 stable 通道可以自动获取兼容的最新版本
+channel = "stable"
+
+# 使用默认配置文件，包含常用的开发工具
+profile = "default"
+
+# 安装开发所需的组件
+# - rustfmt: 代码格式化工具
+# - clippy: 静态分析工具，用于代码质量检查
+components = ["rustfmt", "clippy"]
+
+# 根据项目需要支持的目标平台
+# Tauri 项目需要支持跨平台编译（Windows、macOS、Linux）
+# 这里列出主要平台，可以根据实际需要添加或删除
+targets = [
+    # Windows (MSVC)
+    "x86_64-pc-windows-msvc",
+    # macOS (Intel 和 Apple Silicon)
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    # Linux
+    "x86_64-unknown-linux-gnu",
+]
+

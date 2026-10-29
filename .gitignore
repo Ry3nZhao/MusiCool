@@ -1,14 +1,3 @@
-# C++ build
-src/cpp/build/
-build/
-*.pyd
-*.dll
-*.lib
-*.obj
-*.o
-*.a
-*.so
-
 # IDE
 .vscode/
 .idea/
@@ -31,6 +20,6 @@ build/
 scripts/package
 /scripts/PACKAGING.md
 /config.json
-/src-tauri/frontend/node_modules/
-/src-tauri/frontend/dist/
-/src-tauri/target/
+/src/tauri/frontend/node_modules/
+/src/tauri/frontend/dist/
+/src/tauri/target/

@@ -1,5 +1,5 @@
 # Music_Cool - Run Tauri Dev Only
-# 仅运行 Tauri 开发环境，不构建 C++ 静态库
+# 仅运行 Tauri 开发环境（不清理构建缓存）
 # 示例: .\scripts\develop\run_only.ps1
 
 $ErrorActionPreference = "Stop"
@@ -16,7 +16,7 @@ Write-Host "Project Directory: $ProjectRoot" -ForegroundColor Gray
 # -------------------------------------------------------------
 # 1. 检查并自动安装前端依赖
 # -------------------------------------------------------------
-$frontendDir = Join-Path $ProjectRoot "src-tauri\frontend"
+$frontendDir = Join-Path $ProjectRoot "src\tauri\frontend"
 $frontendPkg = Join-Path $frontendDir "package.json"
 $frontendNodeModules = Join-Path $frontendDir "node_modules"
 
@@ -39,14 +39,14 @@ if (Test-Path $frontendPkg) {
 # -------------------------------------------------------------
 Write-Host "Starting Tauri dev..." -ForegroundColor Green
 
-$tauriDir = Join-Path $ProjectRoot "src-tauri"
+$tauriDir = Join-Path $ProjectRoot "src\tauri"
 if (-not (Test-Path $tauriDir)) {
     Write-Host "Error: Tauri directory not found: $tauriDir" -ForegroundColor Red
     exit 1
 }
 
 # 直接调用 frontend/node_modules 中的 Tauri CLI
-# 必须在 src-tauri 目录下运行，以便正确读取 tauri.conf.json
+# 必须在 src/tauri 目录下运行，以便正确读取 tauri.conf.json
 Push-Location $tauriDir
 
 $localTauriCli = Join-Path "frontend" "node_modules" | Join-Path -ChildPath ".bin" | Join-Path -ChildPath "tauri.cmd"

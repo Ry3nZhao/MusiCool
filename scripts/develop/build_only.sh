@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Music_Cool - Build C++ Static Library Only
-# 仅构建 C++ 解码核心静态库（供 Tauri 版本使用），不运行程序
+# Music_Cool - Build Only
+# 构建 Tauri 发布版本（解码器为纯 Rust，无需单独编译），不运行程序
 # 示例: ./scripts/develop/build_only.sh --clean
 
 set -e  # 遇到错误立即退出
@@ -26,122 +26,41 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "=== Music_Cool - Build C++ Static Library ==="
+echo "=== Music_Cool - Build Tauri App ==="
 echo "Project Directory: $PROJECT_ROOT"
 echo ""
 
-# 检查 CMake
-if ! command -v cmake &> /dev/null; then
-    echo "Error: CMake not found" >&2
-    echo "Please install CMake:" >&2
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "  brew install cmake" >&2
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        echo "  sudo apt-get install cmake  # Ubuntu/Debian" >&2
-        echo "  sudo yum install cmake       # Fedora/RHEL" >&2
-    fi
-    exit 1
-fi
-
-# 检测 C++ 编译器（优先 GCC，其次 Clang）
-CXX=""
-COMPILERS=("g++" "clang++")
-for compiler in "${COMPILERS[@]}"; do
-    if command -v "$compiler" &> /dev/null; then
-        CXX="$compiler"
-        break
+for tool in cargo npm; do
+    if ! command -v "$tool" &> /dev/null; then
+        echo "Error: $tool not found" >&2
+        exit 1
     fi
 done
 
-if [[ -z "$CXX" ]]; then
-    echo "Error: No C++ compiler found (g++ or clang++)" >&2
-    echo "Please install a C++ compiler:" >&2
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "  xcode-select --install  # Install Xcode Command Line Tools" >&2
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        echo "  sudo apt-get install build-essential  # Ubuntu/Debian" >&2
-        echo "  sudo yum groupinstall 'Development Tools'  # Fedora/RHEL" >&2
-    fi
-    exit 1
-fi
+TAURI_DIR="$PROJECT_ROOT/src/tauri"
+FRONTEND_DIR="$TAURI_DIR/frontend"
 
-echo "Using C++ compiler: $CXX"
-CXX_VERSION=$("$CXX" --version | head -n 1)
-echo "  $CXX_VERSION"
-echo ""
+cd "$TAURI_DIR"
 
-# 检查 OpenSSL 开发库
-if ! pkg-config --exists openssl 2>/dev/null; then
-    echo "Warning: OpenSSL development libraries not found via pkg-config" >&2
-    echo "The build may fail if OpenSSL headers are not available." >&2
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "  Install with: brew install openssl" >&2
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        echo "  Install with: sudo apt-get install libssl-dev  # Ubuntu/Debian" >&2
-        echo "                sudo yum install openssl-devel    # Fedora/RHEL" >&2
-    fi
-    echo ""
-fi
-
-# 构建目录
-CPP_DIR="$PROJECT_ROOT/src/cpp"
-BUILD_DIR="$CPP_DIR/build"
-
-# 清理
 if [[ "$CLEAN" == true ]]; then
-    echo "Cleaning C++ build directory..." >&2
-    if [[ -d "$BUILD_DIR" ]]; then
-        rm -rf "$BUILD_DIR"
-    fi
+    echo "Cleaning Rust build directory..."
+    cargo clean
 fi
 
-# 创建构建目录
-if [[ ! -d "$BUILD_DIR" ]]; then
-    mkdir -p "$BUILD_DIR"
+if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
+    echo "Installing frontend dependencies..."
+    npm install --prefix "$FRONTEND_DIR"
 fi
 
-cd "$BUILD_DIR"
-
-# 清理 CMake 缓存
-if [[ -f "CMakeCache.txt" ]]; then
-    echo "Cleaning CMake cache..." >&2
-    rm -f CMakeCache.txt
-    if [[ -d "CMakeFiles" ]]; then
-        rm -rf CMakeFiles
-    fi
-fi
-
-# 配置 CMake
-echo "Configuring CMake for C++ decoder core..."
-cmake .. -G "Unix Makefiles"
-
-if [[ $? -ne 0 ]]; then
-    echo "Error: CMake configuration failed" >&2
-    exit 1
-fi
-
-# 编译静态库目标 ncm_decoder_static
-echo "Building static library target 'ncm_decoder_static'..."
-cmake --build . --target ncm_decoder_static
-
-if [[ $? -ne 0 ]]; then
-    echo "Error: Compilation failed" >&2
-    exit 1
+LOCAL_TAURI_CLI="$FRONTEND_DIR/node_modules/.bin/tauri"
+if [[ -f "$LOCAL_TAURI_CLI" ]]; then
+    "$LOCAL_TAURI_CLI" build
+else
+    npm run --prefix frontend tauri -- build
 fi
 
 cd "$PROJECT_ROOT"
 
-# 提示输出位置
-PROJECT_BUILD_DIR="$PROJECT_ROOT/build"
 echo ""
 echo "Build completed successfully."
-echo "Expected static library location:"
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    echo "  - $PROJECT_BUILD_DIR/libncm_decoder_static.a"
-else
-    echo "  - $PROJECT_BUILD_DIR/libncm_decoder_static.a"
-fi
-echo ""
-echo "You can now run the Tauri dev app with:"
-echo "  ./scripts/develop/build_and_run.sh"
-
+echo "Bundles: $TAURI_DIR/target/release/bundle/"

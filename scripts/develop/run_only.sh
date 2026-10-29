@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Music_Cool - Run Tauri Dev Only
-# 仅运行 Tauri 开发环境，不构建 C++ 静态库
+# 仅运行 Tauri 开发环境（不清理构建缓存）
 # 示例: ./scripts/develop/run_only.sh
 
 set -e  # 遇到错误立即退出
@@ -17,7 +17,7 @@ echo ""
 # -------------------------------------------------------------
 # 1. 检查并自动安装前端依赖
 # -------------------------------------------------------------
-FRONTEND_DIR="$PROJECT_ROOT/src-tauri/frontend"
+FRONTEND_DIR="$PROJECT_ROOT/src/tauri/frontend"
 FRONTEND_PKG="$FRONTEND_DIR/package.json"
 FRONTEND_NODE_MODULES="$FRONTEND_DIR/node_modules"
 
@@ -96,7 +96,7 @@ fi
 # -------------------------------------------------------------
 echo "Starting Tauri dev..."
 
-TAURI_DIR="$PROJECT_ROOT/src-tauri"
+TAURI_DIR="$PROJECT_ROOT/src/tauri"
 if [[ ! -d "$TAURI_DIR" ]]; then
     echo "Error: Tauri directory not found: $TAURI_DIR" >&2
     exit 1
