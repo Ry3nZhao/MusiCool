@@ -1,0 +1,159 @@
+# CI：PR 和推送到 master 时检查 + 三平台编译；
+# 推送到 master（即合并后）且全部平台编译成功，自动发布 pre-release。
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # PR 上新提交取消旧的运行；master 上每次合并都要完整跑完并发布
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  TAURI_DIR: src/tauri
+  FRONTEND_DIR: src/tauri/frontend
+
+jobs:
+  check:
+    name: 检查（类型检查 + 单元测试）
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Linux 依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev librsvg2-dev libasound2-dev libssl-dev patchelf
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: src/tauri/frontend/package-lock.json
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/tauri -> target
+          key: check
+
+      - name: 前端依赖
+        run: npm ci --prefix "$FRONTEND_DIR"
+
+      - name: TypeScript 类型检查
+        working-directory: src/tauri/frontend
+        run: npx tsc --noEmit
+
+      # tauri::generate_context! 编译时需要 distDir 存在
+      - name: 构建前端
+        run: npm run build --prefix "$FRONTEND_DIR"
+
+      - name: Rust 单元测试
+        working-directory: src/tauri
+        run: cargo test --locked
+
+  build:
+    name: 编译 ${{ matrix.name }}
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (universal)
+            os: macos-latest
+            args: --target universal-apple-darwin
+            bundle_dir: target/universal-apple-darwin/release/bundle
+            files: dmg/*.dmg
+          - name: Linux (x86_64)
+            os: ubuntu-22.04
+            args: ""
+            bundle_dir: target/release/bundle
+            files: deb/*.deb appimage/*.AppImage
+          - name: Windows (x86_64)
+            os: windows-latest
+            args: ""
+            bundle_dir: target/release/bundle
+            files: msi/*.msi nsis/*.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Linux 依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev librsvg2-dev libasound2-dev libssl-dev patchelf file
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: src/tauri/frontend/package-lock.json
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/tauri -> target
+          key: ${{ matrix.os }}
+
+      - name: 前端依赖
+        run: npm ci --prefix "${{ env.FRONTEND_DIR }}"
+
+      - name: Tauri 构建
+        working-directory: src/tauri
+        shell: bash
+        run: ./frontend/node_modules/.bin/tauri build ${{ matrix.args }}
+
+      - name: 收集安装包
+        working-directory: src/tauri/${{ matrix.bundle_dir }}
+        shell: bash
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/dist-out"
+          shopt -s nullglob
+          found=0
+          for f in ${{ matrix.files }}; do
+            cp "$f" "$GITHUB_WORKSPACE/dist-out/"
+            echo "收集: $f"
+            found=1
+          done
+          [ "$found" = 1 ] || { echo "没有找到安装包"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ runner.os }}
+          path: dist-out/*
+          if-no-files-found: error
+
+  prerelease:
+    name: 发布 pre-release
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          pattern: bundle-*
+          merge-multiple: true
+
+      - name: 创建 pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(jq -r '.package.version' src/tauri/tauri.conf.json)
+          TAG="v${VERSION}-pre.${GITHUB_RUN_NUMBER}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          ls -la release-files
+          gh release create "$TAG" release-files/* \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "MusiCool ${VERSION} 预览版 #${GITHUB_RUN_NUMBER} (${SHORT_SHA})" \
+            --generate-notes
