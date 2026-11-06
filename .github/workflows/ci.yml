@@ -5,8 +5,17 @@ name: CI
 on:
   push:
     branches: [master]
+    # 只改文档/品牌素材时不跑 CI，也不发预览版
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "assets/**"
   pull_request:
     branches: [master]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "assets/**"
   workflow_dispatch:
 
 concurrency:
