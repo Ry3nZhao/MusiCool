@@ -1,4 +1,4 @@
-# Music_Cool - Build Only
+# MusiCool - Build Only
 # 构建 Tauri 发布版本（解码器为纯 Rust，无需单独编译），不运行程序
 # 示例: .\scripts\develop\build_only.ps1 -Clean
 
@@ -13,7 +13,7 @@ $ScriptDir   = Split-Path -Parent $ScriptPath
 $ScriptsDir  = Split-Path -Parent $ScriptDir
 $ProjectRoot = Split-Path -Parent $ScriptsDir
 
-Write-Host "=== Music_Cool - Build Tauri App ===" -ForegroundColor Cyan
+Write-Host "=== MusiCool - Build Tauri App ===" -ForegroundColor Cyan
 Write-Host "Project Directory: $ProjectRoot" -ForegroundColor Gray
 Write-Host ""
 

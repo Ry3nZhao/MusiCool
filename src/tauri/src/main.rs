@@ -6,6 +6,10 @@ mod importer;
 
 mod decoder;
 
+mod library;
+
+mod player;
+
 
 
 use importer::ImportStatus;
@@ -38,6 +42,23 @@ pub struct Project {
 
     pub exclude_patterns: Vec<String>,  // 排除规则列表
 
+}
+
+/// 改名为 MusiCool 前，配置存放在 `com.musiccool.app` 目录；新位置没有配置时把旧的复制过来。
+fn migrate_legacy_config(new_path: &std::path::Path) {
+    if new_path.exists() {
+        return;
+    }
+    let Some(base) = new_path.parent().and_then(|d| d.parent()) else { return };
+    let old_path = base.join("com.musiccool.app").join("config.json");
+    if old_path.is_file() {
+        if let Some(dir) = new_path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        if let Err(e) = std::fs::copy(&old_path, new_path) {
+            eprintln!("迁移旧配置失败 {:?}: {}", old_path, e);
+        }
+    }
 }
 
 /// 应用设置
@@ -78,6 +99,10 @@ pub struct AppSettings {
 
     pub projects: Vec<Project>,
 
+    /// 播放设置（音量、输出设备、采样率策略、循环/随机）
+    #[serde(default)]
+    pub player: player::PlayerSettings,
+
 }
 
 
@@ -99,6 +124,7 @@ impl Default for AppSettings {
             last_output_path: None,
 
             projects: Vec::new(),
+            player: player::PlayerSettings::default(),
 
         }
 
@@ -144,13 +170,16 @@ impl AppState {
 
         // 开发版：使用项目根目录的 config.json（与 Python 版本保持一致）
         // 优先使用当前工作目录，如果不存在则尝试从可执行文件路径推断
-        // 发布版：存到系统的应用配置目录（如 macOS 的 ~/Library/Application Support/com.musiccool.app）。
+        // 发布版：存到系统的应用配置目录（如 macOS 的 ~/Library/Application Support/com.musicool.app）。
         // 从 Finder 启动时工作目录是 "/"，按工作目录推断会得到不可写的 /config.json，导致保存失败。
         let release_config = if cfg!(debug_assertions) {
             None
         } else {
             tauri::api::path::app_config_dir(&app_handle.config()).map(|d| d.join("config.json"))
         };
+        if let Some(p) = &release_config {
+            migrate_legacy_config(p);
+        }
 
         let config_path: PathBuf = if let Some(p) = release_config {
             p
@@ -565,80 +594,11 @@ async fn update_project(
 
 /// 文件信息结构（用于音乐库列表）
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-
-pub struct FileInfo {
-
-    pub path: String,
-
-    pub name: String,
-
-    pub size: u64,
-
-    pub artist: Option<String>,
-
-    pub album: Option<String>,
-
-    pub duration: Option<u64>,  // 持续时间（秒）
-
-}
-
-
-
-/// 提取音频文件元数据（歌手、专辑、持续时间）
-
-fn extract_audio_metadata(path: &std::path::Path) -> (Option<String>, Option<String>, Option<u64>) {
-
-    use lofty::{read_from_path, prelude::TaggedFileExt};
-
-    use lofty::file::AudioFile;
-
-    use lofty::tag::{Tag, Accessor};
-
-    use std::borrow::Cow;
-
-    match read_from_path(path) {
-
-        Ok(tagged_file) => {
-
-            let tag = tagged_file.primary_tag();
-
-            let artist = tag
-
-                .and_then(|t: &Tag| t.artist())
-
-                .map(|s: Cow<'_, str>| s.to_string());
-
-            let album = tag
-
-                .and_then(|t: &Tag| t.album())
-
-                .map(|s: Cow<'_, str>| s.to_string());
-
-            let duration = tagged_file.properties().duration().as_secs();
-
-            (artist, album, Some(duration))
-
-        }
-
-        Err(_) => (None, None, None),
-
-    }
-
-}
-
-
-
-/// 列出音乐库中的文件
-
+/// 列出音乐库中的歌曲（每首歌一条，歌词与封面作为附属字段）
+///
+/// 先把 SQLite 索引与磁盘同步（增量），再从数据库读出列表。
 #[tauri::command]
-
-async fn list_library_files(state: State<'_, AppState>) -> Result<Vec<FileInfo>, String> {
-
-    use walkdir::WalkDir;
-
-
-
+async fn list_library_files(state: State<'_, AppState>) -> Result<Vec<library::Track>, String> {
     // 只在读取路径时持有锁，扫描期间不阻塞其他命令
     let Some(library_path) = state.settings.read().await.library_path.clone() else {
         return Ok(Vec::new());
@@ -649,35 +609,13 @@ async fn list_library_files(state: State<'_, AppState>) -> Result<Vec<FileInfo>,
         return Err(format!("音乐库路径不是有效目录: {}", library_path));
     }
 
-    // 目录遍历和标签读取都是同步 I/O，放到 blocking 线程，避免占住 tokio 工作线程
-    let result = tokio::task::spawn_blocking(move || {
-        let mut result = Vec::new();
-        for entry in WalkDir::new(&root).into_iter().filter_map(|e| e.ok()) {
-            if !entry.file_type().is_file() {
-                continue;
-            }
-            let Ok(metadata) = entry.metadata() else {
-                continue;
-            };
-            let path = entry.path();
-            // 尝试提取音频元数据
-            let (artist, album, duration) = extract_audio_metadata(path);
-            result.push(FileInfo {
-                path: path.to_string_lossy().to_string(),
-                name: entry.file_name().to_string_lossy().to_string(),
-                size: metadata.len(),
-                artist,
-                album,
-                duration,
-            });
-        }
-        result
+    // 目录遍历、标签读取和 SQLite 都是同步 I/O，放到 blocking 线程，避免占住 tokio 工作线程
+    tokio::task::spawn_blocking(move || {
+        library::sync(&root)?;
+        library::list(&root)
     })
     .await
-    .map_err(|e| format!("扫描音乐库失败: {}", e))?;
-
-    Ok(result)
-
+    .map_err(|e| format!("扫描音乐库失败: {}", e))?
 }
 
 
@@ -772,7 +710,9 @@ fn main() {
 
                 .expect("初始化应用状态失败");
 
+            let player_settings = tauri::async_runtime::block_on(async { state.settings.read().await.player.clone() });
             app.manage(state);
+            app.manage(player::Player::spawn(app.handle(), &player_settings));
 
             Ok(())
 
@@ -802,13 +742,21 @@ fn main() {
 
             start_import_task,
 
-            get_import_status
-
+            get_import_status,
+            player::player_status,
+            player::player_play_queue,
+            player::player_control,
+            player::player_seek,
+            player::player_set_volume,
+            player::player_set_mode,
+            player::player_set_output,
+            player::player_output_options,
+            player::read_lyrics
         ])
 
         .run(tauri::generate_context!())
 
-        .expect("error while running Music_Cool Tauri application");
+        .expect("error while running MusiCool Tauri application");
 
 }
 

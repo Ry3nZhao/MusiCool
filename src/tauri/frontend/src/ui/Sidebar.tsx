@@ -7,13 +7,16 @@ export const Sidebar: React.FC = () => {
       <div className="sidebar-header">
         <img src="/logo.svg" alt="" className="sidebar-logo" />
         <span>
-          <span className="brand-music">Music</span>
+          <span className="brand-music">Musi</span>
           <span className="brand-cool">Cool</span>
         </span>
       </div>
       <nav className="sidebar-nav">
         <NavLink to="/library" className="sidebar-item">
           音乐库
+        </NavLink>
+        <NavLink to="/now-playing" className="sidebar-item">
+          正在播放
         </NavLink>
         <NavLink to="/import" className="sidebar-item">
           导入

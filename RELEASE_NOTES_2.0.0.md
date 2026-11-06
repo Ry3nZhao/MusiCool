@@ -1,8 +1,8 @@
-# Music_Cool v2.0.0 Release Notes
+# MusiCool v2.0.0 Release Notes
 
 ## 🎉 重大更新
 
-Music_Cool v2.0.0 是一个**重大架构升级版本**，从 Python/PyQt6 架构完全迁移到现代化的 Tauri + Rust + React 技术栈，带来更好的性能、更现代的界面和更强的跨平台支持。
+MusiCool v2.0.0 是一个**重大架构升级版本**，从 Python/PyQt6 架构完全迁移到现代化的 Tauri + Rust + React 技术栈，带来更好的性能、更现代的界面和更强的跨平台支持。
 
 ## ✨ 主要特性
 
@@ -29,7 +29,7 @@ Music_Cool v2.0.0 是一个**重大架构升级版本**，从 Python/PyQt6 架�
 ## 📦 安装说明
 
 ### Windows
-下载并运行 `Music Cool Setup.exe` (MSI 或 NSIS 安装包)
+下载并运行 `MusiCool Setup.exe` (MSI 或 NSIS 安装包)
 
 ### macOS / Linux
 请参考 README.md 中的构建说明

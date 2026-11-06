@@ -1,4 +1,4 @@
-# Music_Cool - Run Tauri Dev Only
+# MusiCool - Run Tauri Dev Only
 # 仅运行 Tauri 开发环境（不清理构建缓存）
 # 示例: .\scripts\develop\run_only.ps1
 
@@ -10,7 +10,7 @@ $ScriptDir   = Split-Path -Parent $ScriptPath
 $ScriptsDir  = Split-Path -Parent $ScriptDir
 $ProjectRoot = Split-Path -Parent $ScriptsDir
 
-Write-Host "=== Music_Cool - Run Tauri Dev Only ===" -ForegroundColor Cyan
+Write-Host "=== MusiCool - Run Tauri Dev Only ===" -ForegroundColor Cyan
 Write-Host "Project Directory: $ProjectRoot" -ForegroundColor Gray
 
 # -------------------------------------------------------------

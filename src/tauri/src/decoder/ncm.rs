@@ -44,6 +44,9 @@ pub enum NcmError {
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NcmMeta {
+    /// 网易云歌曲 ID，对应网易云目录下的 `meta/track-<id>.jpg`
+    #[serde(default)]
+    pub music_id: Option<serde_json::Value>,
     #[serde(default)]
     pub music_name: Option<String>,
     #[serde(default)]
@@ -56,6 +59,14 @@ pub struct NcmMeta {
 }
 
 impl NcmMeta {
+    pub fn music_id(&self) -> Option<i64> {
+        match self.music_id.as_ref()? {
+            serde_json::Value::Number(n) => n.as_i64(),
+            serde_json::Value::String(s) => s.parse().ok(),
+            _ => None,
+        }
+    }
+
     pub fn artists(&self) -> Option<String> {
         if self.artist.is_empty() {
             None
@@ -159,6 +170,55 @@ fn parse_meta(mut raw: Vec<u8>) -> Option<NcmMeta> {
     serde_json::from_slice(json).ok()
 }
 
+/// NCM 文件头：音频之前的所有内容。
+pub struct NcmHeader {
+    key_stream: KeyStream,
+    pub meta: Option<NcmMeta>,
+    pub cover: Option<Vec<u8>>,
+    /// 音频数据在文件中的起始偏移
+    pub audio_start: u64,
+}
+
+/// 只解析文件头（密钥、元数据、封面），读完后 `r` 停在音频起点。
+pub fn read_header<R: Read + Seek>(r: &mut R) -> Result<NcmHeader, NcmError> {
+    let mut magic = [0u8; 8];
+    r.read_exact(&mut magic)?;
+    if &magic != MAGIC {
+        return Err(NcmError::BadMagic);
+    }
+    r.seek(SeekFrom::Current(2))?;
+
+    // 音频密钥
+    let key_len = read_u32(r)?;
+    let mut key = read_vec(r, key_len)?;
+    key.iter_mut().for_each(|b| *b ^= 0x64);
+    aes128_ecb_decrypt(CORE_KEY, &mut key)?;
+    let key = key
+        .strip_prefix(KEY_PREFIX)
+        .filter(|k| !k.is_empty())
+        .ok_or(NcmError::Corrupted("音频密钥格式错误"))?;
+    let key_stream = KeyStream::new(key);
+
+    // 元数据（可能为空，解析失败也不影响音频解码）
+    let meta_len = read_u32(r)?;
+    let meta = if meta_len > 0 { parse_meta(read_vec(r, meta_len)?) } else { None };
+
+    // crc32 + 1 字节间隔
+    r.seek(SeekFrom::Current(5))?;
+
+    // 封面区：frame_len 是整块长度，cover_len 是图片实际长度，后面可能有填充
+    let frame_len = read_u32(r)?;
+    let cover_len = read_u32(r)?;
+    if cover_len > frame_len && frame_len != 0 {
+        return Err(NcmError::Corrupted("封面长度大于封面区长度"));
+    }
+    let cover = if cover_len > 0 { Some(read_vec(r, cover_len)?) } else { None };
+    r.seek(SeekFrom::Current(frame_len.saturating_sub(cover_len) as i64))?;
+
+    let audio_start = r.stream_position()?;
+    Ok(NcmHeader { key_stream, meta, cover, audio_start })
+}
+
 /// 解码一个 NCM 文件到 `output_dir`，文件名沿用输入文件名，扩展名按实际格式决定。
 ///
 /// 先写入临时文件，成功后再重命名，避免中途失败留下半截文件。
@@ -172,41 +232,7 @@ pub fn decode_file(
     let total = file.metadata()?.len();
     let mut r = BufReader::new(file);
 
-    let mut magic = [0u8; 8];
-    r.read_exact(&mut magic)?;
-    if &magic != MAGIC {
-        return Err(NcmError::BadMagic);
-    }
-    r.seek(SeekFrom::Current(2))?;
-
-    // 音频密钥
-    let key_len = read_u32(&mut r)?;
-    let mut key = read_vec(&mut r, key_len)?;
-    key.iter_mut().for_each(|b| *b ^= 0x64);
-    aes128_ecb_decrypt(CORE_KEY, &mut key)?;
-    let key = key
-        .strip_prefix(KEY_PREFIX)
-        .filter(|k| !k.is_empty())
-        .ok_or(NcmError::Corrupted("音频密钥格式错误"))?;
-    let ks = KeyStream::new(key);
-
-    // 元数据（可能为空，解析失败也不影响音频解码）
-    let meta_len = read_u32(&mut r)?;
-    let meta = if meta_len > 0 { parse_meta(read_vec(&mut r, meta_len)?) } else { None };
-
-    // crc32 + 1 字节间隔
-    r.seek(SeekFrom::Current(5))?;
-
-    // 封面区：frame_len 是整块长度，cover_len 是图片实际长度，后面可能有填充
-    let frame_len = read_u32(&mut r)?;
-    let cover_len = read_u32(&mut r)?;
-    if cover_len > frame_len && frame_len != 0 {
-        return Err(NcmError::Corrupted("封面长度大于封面区长度"));
-    }
-    let cover = if cover_len > 0 { Some(read_vec(&mut r, cover_len)?) } else { None };
-    r.seek(SeekFrom::Current(frame_len.saturating_sub(cover_len) as i64))?;
-
-    let audio_start = r.stream_position()?;
+    let NcmHeader { key_stream: ks, meta, cover, audio_start } = read_header(&mut r)?;
     if audio_start >= total {
         return Err(NcmError::Corrupted("没有音频数据"));
     }
@@ -252,8 +278,11 @@ pub fn decode_file(
     Ok(DecodedFile { output_path, meta, cover })
 }
 
-/// 把 NCM 里的标题/歌手/专辑/封面写入输出文件的标签（尽力而为）。
-pub fn write_tags(decoded: &DecodedFile) -> Result<(), lofty::error::LoftyError> {
+/// 把 NCM 里的标题/歌手/专辑/封面和歌曲 ID 写入输出文件的标签（尽力而为）。
+///
+/// `cover_override` 用于传入网易云 `meta/track-<id>.jpg`（通常比文件内嵌的封面清晰），
+/// 歌曲 ID 写进注释标签，之后建库时可以从文件本身恢复。
+pub fn write_tags(decoded: &DecodedFile, cover_override: Option<Vec<u8>>) -> Result<(), lofty::error::LoftyError> {
     use lofty::file::TaggedFileExt;
     use lofty::picture::{MimeType, Picture, PictureType};
     use lofty::probe::Probe;
@@ -276,8 +305,11 @@ pub fn write_tags(decoded: &DecodedFile) -> Result<(), lofty::error::LoftyError>
         if let Some(a) = &meta.album {
             tag.set_album(a.clone());
         }
+        if let Some(id) = meta.music_id() {
+            tag.set_comment(format!("{}{id}", crate::library::MUSIC_ID_COMMENT_PREFIX));
+        }
     }
-    if let Some(cover) = &decoded.cover {
+    if let Some(cover) = cover_override.as_ref().or(decoded.cover.as_ref()) {
         let mime = if cover.starts_with(b"\x89PNG") { MimeType::Png } else { MimeType::Jpeg };
         tag.remove_picture_type(PictureType::CoverFront);
         tag.push_picture(Picture::new_unchecked(PictureType::CoverFront, Some(mime), None, cover.clone()));
@@ -325,7 +357,7 @@ mod real_files {
             }
             match super::decode_file(e.path(), &out, |_, _| {}) {
                 Ok(d) => {
-                    if let Err(err) = super::write_tags(&d) {
+                    if let Err(err) = super::write_tags(&d, None) {
                         println!("TAG FAIL {:?}: {}", d.output_path, err);
                     }
                 }
@@ -338,3 +370,4 @@ mod real_files {
         assert_eq!(failed, 0);
     }
 }
+

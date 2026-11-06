@@ -6,13 +6,13 @@
     "distDir": "frontend/dist"
   },
   "package": {
-    "productName": "Music Cool",
+    "productName": "MusiCool",
     "version": "2.0.0"
   },
   "tauri": {
     "bundle": {
       "active": true,
-      "identifier": "com.musiccool.app",
+      "identifier": "com.musicool.app",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -24,7 +24,7 @@
     },
     "windows": [
       {
-        "title": "MusicCool",
+        "title": "MusiCool",
         "width": 1200,
         "height": 800,
         "resizable": true
@@ -47,6 +47,13 @@
         "all": false,
         "readDir": true,
         "readFile": true
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": [
+          "$HOME/**",
+          "/Volumes/**"
+        ]
       }
     },
     "security": {

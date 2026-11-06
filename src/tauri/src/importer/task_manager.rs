@@ -408,9 +408,7 @@ impl ImportTaskManager {
 
                             }));
 
-                            let decode_result = decoder::decode_ncm_to_dir(&file_task.input, &output_dir, progress.clone()).await;
-                            
-                            decode_result
+                            decoder::decode_ncm_to_dir(&file_task.input, &output_dir, progress.clone()).await
 
                         } else {
 
@@ -419,6 +417,8 @@ impl ImportTaskManager {
                             copy_file(&file_task.input, &file_task.output).await
 
                         };
+
+                        let result = record_in_library(file_task, result).await;
 
 
 
@@ -863,6 +863,8 @@ impl ImportTaskManager {
 
                             };
 
+                            let result = record_in_library(file_task, result).await;
+
                             // 更新进度
 
                             {
@@ -1007,6 +1009,19 @@ impl ImportTaskManager {
 
 /// 复制文件（保留元数据）
 
+/// 导入成功后：带上同名歌词，并把歌曲写入音乐库索引。索引失败不影响导入结果。
+async fn record_in_library(file_task: &rsync_like::FileTask, result: decoder::DecodeResult) -> decoder::DecodeResult {
+    if let Some(output) = result.output.clone() {
+        let root = file_task.library_root.clone();
+        let source = file_task.input.clone();
+        let res = tokio::task::spawn_blocking(move || crate::library::on_imported(&root, &source, &output)).await;
+        if let Ok(Err(e)) | Err(e) = res.map_err(|e| e.to_string()) {
+            eprintln!("写入音乐库索引失败 {:?}: {}", file_task.input, e);
+        }
+    }
+    result
+}
+
 async fn copy_file(src: &std::path::Path, dst: &std::path::Path) -> decoder::DecodeResult {
 
     // 确保目标目录存在
@@ -1017,7 +1032,7 @@ async fn copy_file(src: &std::path::Path, dst: &std::path::Path) -> decoder::Dec
 
             eprintln!("创建目录失败: {:?}, 错误: {}", parent, e);
 
-            return decoder::DecodeResult { success: false };
+            return decoder::DecodeResult { success: false, output: None };
 
         }
 
@@ -1045,7 +1060,7 @@ async fn copy_file(src: &std::path::Path, dst: &std::path::Path) -> decoder::Dec
 
             }
 
-            decoder::DecodeResult { success: true }
+            decoder::DecodeResult { success: true, output: Some(dst.to_path_buf()) }
 
         }
 
@@ -1053,7 +1068,7 @@ async fn copy_file(src: &std::path::Path, dst: &std::path::Path) -> decoder::Dec
 
             eprintln!("复制文件失败: {:?} -> {:?}, 错误: {}", src, dst, e);
 
-            decoder::DecodeResult { success: false }
+            decoder::DecodeResult { success: false, output: None }
 
         }
 

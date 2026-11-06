@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Music_Cool - Build Only
+# MusiCool - Build Only
 # 构建 Tauri 发布版本（解码器为纯 Rust，无需单独编译），不运行程序
 # 示例: ./scripts/develop/build_only.sh --clean
 
@@ -26,7 +26,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "=== Music_Cool - Build Tauri App ==="
+echo "=== MusiCool - Build Tauri App ==="
 echo "Project Directory: $PROJECT_ROOT"
 echo ""
 

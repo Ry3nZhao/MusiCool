@@ -1,4 +1,4 @@
-# Music_Cool - Run Tauri Dev
+# MusiCool - Run Tauri Dev
 # 启动 Tauri 开发环境（tauri dev 会自动编译 Rust 后端，含解码器）
 # 示例: .\scripts\develop\build_and_run.ps1 [-Clean]
 
@@ -13,7 +13,7 @@ $ScriptDir   = Split-Path -Parent $ScriptPath
 $ScriptsDir  = Split-Path -Parent $ScriptDir
 $ProjectRoot = Split-Path -Parent $ScriptsDir
 
-Write-Host "=== Music_Cool - Build & Run Tauri Dev ===" -ForegroundColor Cyan
+Write-Host "=== MusiCool - Build & Run Tauri Dev ===" -ForegroundColor Cyan
 Write-Host "Project Directory: $ProjectRoot" -ForegroundColor Gray
 Write-Host ""
 

@@ -8,6 +8,8 @@ use walkdir::WalkDir;
 #[derive(Debug, Clone, Serialize)]
 pub struct FileTask {
     pub input: PathBuf,
+    /// 音乐库根目录（导入完成后写入 SQLite 索引）
+    pub library_root: PathBuf,
     pub output: PathBuf,
     pub is_ncm: bool,
 }
@@ -19,6 +21,10 @@ pub struct SyncPlan {
     pub skipped_files: usize,
     #[allow(dead_code)]
     pub total_scanned: usize,
+}
+
+fn is_ncm_path(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("ncm"))
 }
 
 fn is_excluded(rel: &Path, exclude_dirs: &[String]) -> bool {
@@ -65,6 +71,10 @@ pub fn plan_sync(params: &ImportParams) -> Result<SyncPlan, String> {
             continue;
         }
 
+        // 只导入音频（含 NCM）。歌词、封面等附属文件随歌曲一起处理，不单独镜像
+        if !is_ncm_path(path) && !crate::library::is_audio(path) {
+            continue;
+        }
         let is_ncm = path.extension().map(|e| e.to_ascii_lowercase())
             .and_then(|e| e.to_str().map(|s| s == "ncm")).unwrap_or(false);
 
@@ -143,6 +153,7 @@ pub fn plan_sync(params: &ImportParams) -> Result<SyncPlan, String> {
 
         tasks.push(FileTask {
             input: path.to_path_buf(),
+            library_root: output_root.to_path_buf(),
             output: out_path,
             is_ncm,
         });

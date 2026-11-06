@@ -1,24 +1,12 @@
 import React, { useEffect, useState } from "react";
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { convertFileSrc, invoke } from "@tauri-apps/api/tauri";
+import { usePlayer } from "../player/PlayerContext";
+import { FileInfo } from "../player/types";
+import { PlayIcon, ShuffleIcon } from "../player/icons";
 
 
 
-interface FileInfo {
-
-  path: string;
-
-  name: string;
-
-  size: number;
-
-  artist?: string;
-
-  album?: string;
-
-  duration?: number;  // 持续时间（秒）
-
-}
 
 
 
@@ -41,6 +29,8 @@ export const LibraryPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const [searchQuery, setSearchQuery] = useState("");
+
+  const { playList, status, setMode } = usePlayer();
 
 
 
@@ -148,6 +138,8 @@ export const LibraryPage: React.FC = () => {
 
         item.name.toLowerCase().includes(query) ||
 
+        item.file_name.toLowerCase().includes(query) ||
+
         (item.artist && item.artist.toLowerCase().includes(query)) ||
 
         (item.album && item.album.toLowerCase().includes(query))
@@ -222,11 +214,31 @@ export const LibraryPage: React.FC = () => {
 
         <h1 className="page-title" style={{ margin: 0 }}>音乐库</h1>
 
-        <button onClick={loadLibrary} disabled={loading} className="btn btn-primary">
-
-          {loading ? "刷新中..." : "刷新列表"}
-
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            className="btn btn-primary btn-with-icon"
+            disabled={sortedAndFilteredItems.length === 0}
+            onClick={async () => {
+              if (status.shuffle) await setMode(status.repeat, false);
+              playList(sortedAndFilteredItems, 0);
+            }}
+          >
+            <PlayIcon size={14} /> 播放全部
+          </button>
+          <button
+            className="btn btn-secondary btn-with-icon"
+            disabled={sortedAndFilteredItems.length === 0}
+            onClick={async () => {
+              if (!status.shuffle) await setMode(status.repeat, true);
+              playList(sortedAndFilteredItems, Math.floor(Math.random() * sortedAndFilteredItems.length));
+            }}
+          >
+            <ShuffleIcon size={14} /> 随机播放
+          </button>
+          <button onClick={loadLibrary} disabled={loading} className="btn btn-secondary">
+            {loading ? "刷新中..." : "刷新列表"}
+          </button>
+        </div>
 
       </div>
 
@@ -260,7 +272,7 @@ export const LibraryPage: React.FC = () => {
 
             type="text"
 
-            placeholder="搜索文件名、歌手或专辑..."
+            placeholder="搜索歌名、歌手或专辑..."
 
             value={searchQuery}
 
@@ -316,7 +328,7 @@ export const LibraryPage: React.FC = () => {
 
                   >
 
-                    文件名 {getSortIcon("name")}
+                    歌曲 {getSortIcon("name")}
 
                   </th>
 
@@ -422,35 +434,38 @@ export const LibraryPage: React.FC = () => {
 
               <tbody>
 
-                {sortedAndFilteredItems.map((item) => (
-
+                {sortedAndFilteredItems.map((item, index) => (
                   <tr
-
                     key={item.path}
-
-                    style={{
-
-                      borderBottom: "1px solid #e0e0e0",
-
-                      transition: "background-color 0.2s",
-
-                    }}
-
-                    onMouseEnter={(e) => {
-
-                      e.currentTarget.style.backgroundColor = "#f9f9f9";
-
-                    }}
-
-                    onMouseLeave={(e) => {
-
-                      e.currentTarget.style.backgroundColor = "transparent";
-
-                    }}
-
+                    className={`library-row ${status.path === item.path ? "is-playing" : ""}`}
+                    onDoubleClick={() => playList(sortedAndFilteredItems, index)}
+                    title="双击播放"
                   >
 
-                    <td style={{ padding: "12px" }}>{item.name}</td>
+                    <td style={{ padding: "12px" }}>
+                      <div className="track-cell">
+                        <div className="track-cover-wrap">
+                          {item.cover_path ? (
+                            <img className="track-cover" src={convertFileSrc(item.cover_path)} alt="" loading="lazy" />
+                          ) : (
+                            <div className="track-cover track-cover-empty" />
+                          )}
+                          <button
+                            className="track-play"
+                            title="播放"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playList(sortedAndFilteredItems, index);
+                            }}
+                          >
+                            {status.path === item.path && status.state === "playing" ? <span className="eq"><i /><i /><i /></span> : <PlayIcon size={14} />}
+                          </button>
+                        </div>
+                        <span title={item.file_name}>{item.name}</span>
+                        {item.lyrics_path && <span className="track-badge" title="有歌词">词</span>}
+                        <span className="track-format">{item.format.toUpperCase()}</span>
+                      </div>
+                    </td>
 
                     <td style={{ padding: "12px", color: "#666" }}>{item.artist || "-"}</td>
 

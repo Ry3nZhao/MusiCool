@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Music_Cool - Run Tauri Dev Only
+# MusiCool - Run Tauri Dev Only
 # 仅运行 Tauri 开发环境（不清理构建缓存）
 # 示例: ./scripts/develop/run_only.sh
 
@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 SCRIPTS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 
-echo "=== Music_Cool - Run Tauri Dev Only ==="
+echo "=== MusiCool - Run Tauri Dev Only ==="
 echo "Project Directory: $PROJECT_ROOT"
 echo ""
 

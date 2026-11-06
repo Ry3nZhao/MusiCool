@@ -1,4 +1,4 @@
-# Music_Cool
+# MusiCool
 
 一个用于解码ncm格式文件的跨平台桌面应用程序。
 
@@ -90,7 +90,21 @@
 ```bash
 cd src/tauri
 NCM_DIR=~/Music/网易云音乐 OUT_DIR_TEST=/tmp/ncm_out cargo test --release decode_dir -- --ignored
+# 端到端：导入到临时音乐库并建立索引
+NCM_DIR=~/Music/网易云音乐 LIB_DIR_TEST=/tmp/ncm_lib cargo test --release real_import -- --ignored --nocapture
 ```
+
+## 音乐库索引
+
+**位置**: `src/tauri/src/library/`
+
+音乐库用 SQLite 维护，数据库在 `<音乐库>/.musicool/library.db`，封面缓存在 `<音乐库>/.musicool/covers/`。
+
+- 一首歌只占一条记录：有网易云歌曲 ID 的按 ID 去重，否则按路径去重
+- 歌词：与音频同目录、同名的 `.lrc`，导入时一并复制
+- 封面：NCM 优先使用网易云目录下的 `meta/track-<歌曲ID>.jpg`（1280px），写入标签并缓存
+- 导入只处理音频（ncm/flac/mp3/m4a/ogg/wav），不再镜像 `.lrc`、`meta/`、`.tmp` 等文件
+- 数据库只是缓存，删掉 `.musicool` 后在音乐库页刷新即可从文件重建
 
 ## 开发指南
 
