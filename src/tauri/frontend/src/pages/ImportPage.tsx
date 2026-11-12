@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 
 import { listen } from "@tauri-apps/api/event";
 
-import { open } from "@tauri-apps/api/dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 
 
 

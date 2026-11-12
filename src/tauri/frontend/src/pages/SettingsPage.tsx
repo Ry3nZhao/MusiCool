@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 
-import { open } from "@tauri-apps/api/dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import { DeviceInfo, formatRate } from "../player/types";
 
 interface PlayerSettings {

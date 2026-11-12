@@ -68,7 +68,7 @@ MusiCool 把散落在各处的音乐整理成一个干净的本地音乐库，�
 
 ## 从源码构建
 
-需要 Rust（stable）和 Node.js 18+。Linux 另需 `libwebkit2gtk-4.0-dev`、`libgtk-3-dev`、`libasound2-dev` 等依赖（见 [CI 配置](.github/workflows/ci.yml)）。
+需要 Rust（stable）和 Node.js 22+。Linux 另需 `libwebkit2gtk-4.1-dev`、`libgtk-3-dev`、`libasound2-dev` 等依赖（见 [CI 配置](.github/workflows/ci.yml)）。
 
 ```bash
 cd src/tauri

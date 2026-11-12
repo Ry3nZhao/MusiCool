@@ -130,7 +130,7 @@ fn read_audio(path: &Path) -> Scanned {
         s.artist = tag.artist().map(|v| v.to_string()).filter(|v| !v.is_empty());
         s.album = tag.album().map(|v| v.to_string()).filter(|v| !v.is_empty());
         s.music_id = tag
-            .get_strings(&ItemKey::Comment)
+            .get_strings(ItemKey::Comment)
             .find_map(|c| c.strip_prefix(MUSIC_ID_COMMENT_PREFIX).and_then(|id| id.trim().parse().ok()));
         s.picture = tag.pictures().first().map(|p| p.data().to_vec());
     }

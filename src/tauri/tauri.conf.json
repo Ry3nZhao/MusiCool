@@ -1,27 +1,15 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MusiCool",
+  "version": "2.0.0",
+  "identifier": "com.musicool.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:5173",
-    "distDir": "frontend/dist"
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "frontend/dist"
   },
-  "package": {
-    "productName": "MusiCool",
-    "version": "2.0.0"
-  },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "identifier": "com.musicool.app",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "targets": "all"
-    },
+  "app": {
     "windows": [
       {
         "title": "MusiCool",
@@ -30,34 +18,23 @@
         "resizable": true
       }
     ],
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "dialog": {
-        "all": false,
-        "open": true,
-        "message": true,
-        "ask": true,
-        "confirm": true
-      },
-      "fs": {
-        "all": false,
-        "readDir": true,
-        "readFile": true
-      },
-      "protocol": {
-        "asset": true,
-        "assetScope": [
-          "$HOME/**",
-          "/Volumes/**"
-        ]
-      }
-    },
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$HOME/**", "/Volumes/**"]
+      }
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
   }
 }

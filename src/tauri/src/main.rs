@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use std::path::PathBuf;
 
-use tauri::{State, Manager};
+use tauri::{Manager, State};
 
 use tokio::fs;
 
@@ -175,7 +175,7 @@ impl AppState {
         let release_config = if cfg!(debug_assertions) {
             None
         } else {
-            tauri::api::path::app_config_dir(&app_handle.config()).map(|d| d.join("config.json"))
+            app_handle.path().app_config_dir().ok().map(|d| d.join("config.json"))
         };
         if let Some(p) = &release_config {
             migrate_legacy_config(p);
@@ -701,6 +701,7 @@ async fn get_import_status(task_id: String, state: State<'_, AppState>) -> Resul
 fn main() {
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
 
         .setup(|app| {
 
@@ -712,7 +713,7 @@ fn main() {
 
             let player_settings = tauri::async_runtime::block_on(async { state.settings.read().await.player.clone() });
             app.manage(state);
-            app.manage(player::Player::spawn(app.handle(), &player_settings));
+            app.manage(player::Player::spawn(app.handle().clone(), &player_settings));
 
             Ok(())
 

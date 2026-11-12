@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { NoteIcon } from "./icons";
 
 /** 封面：没有封面或加载失败（文件被删、无权限）时显示占位图。 */

@@ -15,7 +15,7 @@
 //! 把 `cover_len` 当成了整个封面区长度，于是封面区存在填充时（很常见），
 //! 音频起点会错位，导致整个音频流的密钥流对不上，输出文件损坏。
 
-use aes::cipher::{generic_array::GenericArray, BlockDecrypt, KeyInit};
+use aes::cipher::{Block, BlockCipherDecrypt, KeyInit};
 use aes::Aes128;
 use base64::Engine;
 use serde::Deserialize;
@@ -100,9 +100,11 @@ fn aes128_ecb_decrypt(key: &[u8; 16], data: &mut Vec<u8>) -> Result<(), NcmError
     if data.is_empty() || data.len() % 16 != 0 {
         return Err(NcmError::Corrupted("AES 数据长度不是 16 的倍数"));
     }
-    let cipher = Aes128::new(GenericArray::from_slice(key));
-    for block in data.chunks_exact_mut(16) {
-        cipher.decrypt_block(GenericArray::from_mut_slice(block));
+    let cipher = Aes128::new(&(*key).into());
+    for chunk in data.chunks_exact_mut(16) {
+        let mut block = Block::<Aes128>::try_from(&chunk[..]).expect("16 字节分块");
+        cipher.decrypt_block(&mut block);
+        chunk.copy_from_slice(&block);
     }
     let pad = *data.last().unwrap() as usize;
     if pad == 0 || pad > 16 || data[data.len() - pad..].iter().any(|&b| b as usize != pad) {
@@ -282,13 +284,15 @@ pub fn decode_file(
 ///
 /// `cover_override` 用于传入网易云 `meta/track-<id>.jpg`（通常比文件内嵌的封面清晰），
 /// 歌曲 ID 写进注释标签，之后建库时可以从文件本身恢复。
-pub fn write_tags(decoded: &DecodedFile, cover_override: Option<Vec<u8>>) -> Result<(), lofty::error::LoftyError> {
+pub fn write_tags(decoded: &DecodedFile, cover_override: Option<Vec<u8>>) -> Result<(), String> {
     use lofty::file::TaggedFileExt;
     use lofty::picture::{MimeType, Picture, PictureType};
     use lofty::probe::Probe;
     use lofty::tag::{Accessor, Tag, TagExt};
 
-    let mut tagged = Probe::open(&decoded.output_path)?.read()?;
+    let mut tagged = Probe::open(&decoded.output_path)
+        .and_then(|p| p.read())
+        .map_err(|e| e.to_string())?;
     let tag_type = tagged.primary_tag_type();
     if tagged.tag(tag_type).is_none() {
         tagged.insert_tag(Tag::new(tag_type));
@@ -312,9 +316,10 @@ pub fn write_tags(decoded: &DecodedFile, cover_override: Option<Vec<u8>>) -> Res
     if let Some(cover) = cover_override.as_ref().or(decoded.cover.as_ref()) {
         let mime = if cover.starts_with(b"\x89PNG") { MimeType::Png } else { MimeType::Jpeg };
         tag.remove_picture_type(PictureType::CoverFront);
-        tag.push_picture(Picture::new_unchecked(PictureType::CoverFront, Some(mime), None, cover.clone()));
+        tag.push_picture(Picture::unchecked(cover.clone()).pic_type(PictureType::CoverFront).mime_type(mime).build());
     }
     tag.save_to_path(&decoded.output_path, lofty::config::WriteOptions::default())
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

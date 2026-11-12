@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import { Cover } from "../player/Cover";
 import { usePlayer, usePosition } from "../player/PlayerContext";
 import { SignalBadge } from "../player/PlayerBar";

@@ -14,7 +14,7 @@ use tokio::task::JoinSet;
 
 use uuid::Uuid;
 
-use tauri::Manager;
+use tauri::Emitter;
 
 
 
@@ -214,8 +214,7 @@ impl ImportTaskManager {
 
     fn emit_progress(&self, _task_id: &str, status: &ImportStatus) {
         if let Some(handle) = &self.app_handle {
-            // 在 Tauri v1 中，使用 emit_all 向所有窗口发送事件
-            let _ = handle.emit_all("import-progress", status.clone());
+            let _ = handle.emit("import-progress", status.clone());
         }
     }
 

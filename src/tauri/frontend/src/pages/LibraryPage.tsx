@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-import { convertFileSrc, invoke } from "@tauri-apps/api/tauri";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { usePlayer } from "../player/PlayerContext";
 import { FileInfo } from "../player/types";
 import { PlayIcon, ShuffleIcon } from "../player/icons";

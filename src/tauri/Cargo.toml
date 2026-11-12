@@ -7,22 +7,23 @@ description = "MusiCool 桌面应用（Tauri + Rust + Web 前端）"
 authors = ["MusiCool"]
 
 [build-dependencies]
-tauri-build = { version = "1", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = [ "dialog-open", "dialog-message", "dialog-ask", "dialog-confirm", "shell-open", "dialog", "fs-read-dir", "fs-read-file", "protocol-asset"] }
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }
 walkdir = "2"
-thiserror = "1"
+thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
-lofty = "0.19"
-aes = "0.8"
-base64 = "0.22"
-rusqlite = { version = "0.32", features = ["bundled"] }
+lofty = "0.25"
+aes = "0.9"
+base64 = "0.23"
+rusqlite = { version = "0.42", features = ["bundled"] }
 # 播放：解码（纯 Rust，覆盖库里的 flac/mp3/m4a(aac/alac)/ogg/wav）、输出、重采样
-symphonia = { version = "0.5.5", default-features = false, features = ["flac", "mp3", "aac", "alac", "isomp4", "ogg", "vorbis", "wav", "pcm"] }
+symphonia = { version = "0.6", default-features = false, features = ["flac", "mp3", "aac", "alac", "isomp4", "ogg", "vorbis", "wav", "pcm"] }
 cpal = "0.18"
 rubato = "5"
 rtrb = "0.3"

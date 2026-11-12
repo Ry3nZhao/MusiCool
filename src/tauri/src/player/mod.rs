@@ -12,7 +12,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
+use tauri::{Emitter, State};
 
 pub use engine::{Command, PlayerStatus, Repeat};
 use engine::{Engine, EngineConfig};
@@ -75,7 +75,7 @@ impl Player {
             shuffle: s.shuffle,
         };
         let notify = Box::new(move |st: &PlayerStatus| {
-            let _ = app.emit_all("player-status", st);
+            let _ = app.emit("player-status", st);
         });
         let engine = Engine::new(rx, status.clone(), notify, cfg);
         std::thread::Builder::new()
