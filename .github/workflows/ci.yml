@@ -157,7 +157,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION=$(jq -r '.package.version' src/tauri/tauri.conf.json)
+          VERSION=$(jq -r '.version' src/tauri/tauri.conf.json)
           TAG="v${VERSION}-pre.${GITHUB_RUN_NUMBER}"
           SHORT_SHA="${GITHUB_SHA::7}"
           ls -la release-files
